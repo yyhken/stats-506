@@ -1,0 +1,378 @@
+---
+title: "hw1"
+format: html
+author: "yiheng yao"
+---
+
+# Question1
+
+## a.
+
+```{r}
+library(dplyr)
+wine_data <- read.csv("wine.data", header = FALSE)
+colnames(wine_data) <- c("Class", "Alcohol", "Malic_Acid", "Ash", "Alcalinity_Ash",
+                         "Magnesium", "Total_Phenols", "Flavanoids", "Nonflavanoid_Phenols",
+                         "Proanthocyanins", "Color_Intensity", "Hue", "OD280_OD315",
+                         "Proline")
+
+head(wine_data)
+```
+
+## b.Checking the number of wines in each class
+
+```{R}
+wine_class_counts <- table(wine_data$Class)
+wine_class_counts
+
+```
+
+## c(1). Correlation Between Alcohol and Color Intensity
+
+```{R}
+correlation_total <- cor(wine_data$Alcohol, wine_data$Color_Intensity)
+correlation_total
+```
+
+## c(2). Correlation by Class
+
+```{R}
+correlation_class1 <- cor(wine_data$Alcohol[wine_data$Class == 1], wine_data$Color_Intensity[wine_data$Class == 1])
+correlation_class2 <- cor(wine_data$Alcohol[wine_data$Class == 2], wine_data$Color_Intensity[wine_data$Class == 2])
+correlation_class3 <- cor(wine_data$Alcohol[wine_data$Class == 3], wine_data$Color_Intensity[wine_data$Class == 3])
+
+correlation_class1
+correlation_class2
+correlation_class3
+
+```
+
+It seems that Class one has the highest and class two has the lowest.
+
+## c(3). Alcohol Content of the Wine with the Highest Color Intensity
+
+```{R}
+max_color_intensity <- which.max(wine_data$Color_Intensity)
+highest_alcohol_content <- wine_data$Alcohol[max_color_intensity]
+highest_alcohol_content
+```
+
+## c(4). Percentage of wines with higher Proanthocyanins than ash
+
+```{R}
+higher_proanthocyanins <- sum(wine_data$Proanthocyanins > wine_data$Ash)
+percentage_higher_proanthocyanins <- (higher_proanthocyanins / nrow(wine_data)) * 100
+percentage_higher_proanthocyanins
+```
+
+## d. summary table
+
+```{R}
+# Calculate overall means
+overall_means <- colMeans(wine_data[, -1])
+
+# Calculate class-wise means
+class_means <- aggregate(. ~ Class, data = wine_data, FUN = mean)
+
+# Combine into one table
+summary_table <- rbind(Overall = overall_means, class_means)
+summary_table
+
+```
+
+## e. T test
+
+```{R}
+#DO T tests
+phenols_class1 <- wine_data$Total_Phenols[wine_data$Class == 1]
+phenols_class2 <- wine_data$Total_Phenols[wine_data$Class == 2]
+phenols_class3 <- wine_data$Total_Phenols[wine_data$Class == 3]
+
+t_test_1_2 <- t.test(phenols_class1, phenols_class2)
+t_test_1_3 <- t.test(phenols_class1, phenols_class3)
+t_test_2_3 <- t.test(phenols_class2, phenols_class3)
+
+t_test_1_2
+t_test_1_3
+t_test_2_3
+
+```
+
+From the t test, we can know that phenols significantly differs from the three classes, due to that the t values are 7.42, 17.12 and 7.0125 respectively.
+
+# Question2
+
+## a.import data
+
+```{R}
+# Load necessary libraries
+library(dplyr)  # For data manipulation
+
+salary_data <- read.csv("AskAManager.csv", header = TRUE)
+str(salary_data)
+
+```
+
+## b. clean up the data name
+
+```{R}
+install.packages("janitor")
+library(janitor)
+
+salary_data <- salary_data %>% clean_names()
+
+library(dplyr)
+
+salary_data <- salary_data %>%
+  rename(
+    id = x,
+    timestamp = timestamp,
+    age = how_old_are_you,
+    industry = what_industry_do_you_work_in,
+    job_title = job_title,
+    job_context = if_your_job_title_needs_additional_context_please_clarify_here,
+    annual_salary = what_is_your_annual_salary_you_ll_indicate_the_currency_in_a_later_question_if_you_are_part_time_or_hourly_please_enter_an_annualized_equivalent_what_you_would_earn_if_you_worked_the_job_40_hours_a_week_52_weeks_a_year,
+    additional_compensation = how_much_additional_monetary_compensation_do_you_get_if_any_for_example_bonuses_or_overtime_in_an_average_year_please_only_include_monetary_compensation_here_not_the_value_of_benefits,
+    currency = please_indicate_the_currency,
+    other_currency = if_other_please_indicate_the_currency_here,
+    income_context = if_your_income_needs_additional_context_please_provide_it_here,
+    country = what_country_do_you_work_in,
+    state = if_you_re_in_the_u_s_what_state_do_you_work_in,
+    city = what_city_do_you_work_in,
+    total_experience = how_many_years_of_professional_work_experience_do_you_have_overall,
+    field_experience = how_many_years_of_professional_work_experience_do_you_have_in_your_field,
+    education = what_is_your_highest_level_of_education_completed,
+    gender = what_is_your_gender,
+    race = what_is_your_race_choose_all_that_apply
+  )
+
+colnames(salary_data)
+
+
+```
+
+## c. restrict the data
+
+```{R}
+initial_observations <- nrow(salary_data)
+
+salary_data_usd <- salary_data %>% filter(salary_data$currency == "USD")
+
+final_observations_usd <- nrow(salary_data_usd)
+
+initial_observations
+final_observations_usd
+
+
+```
+
+## d. eliminate rows
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+
+# Print unique ages
+unique_ages <- unique(salary_data$age)
+print("Unique Ages:")
+print(unique_ages)
+
+# Print unique total experiences
+unique_total_experience <- unique(salary_data$total_experience)
+print("Unique Total Experience:")
+print(unique_total_experience)
+
+# Print unique field experiences
+unique_field_experience <- unique(salary_data$field_experience)
+print("Unique Field Experience:")
+print(unique_field_experience)
+
+# Eliminate any impossible ages (e.g., "under 18")
+salary_data_clean <- salary_data %>%
+  filter(age != "under 18")
+
+#' Convert age category to numeric minimum value
+#'
+#' This function translates age categories into numeric minimum values.
+#' @param age_category A string representing the age category (e.g., "18-24", "25-34").
+#' @return A numeric minimum value for the age category.
+age_to_min <- function(age_category) {
+  case_when(
+    age_category == "18-24" ~ 18,
+    age_category == "25-34" ~ 25,
+    age_category == "35-44" ~ 35,
+    age_category == "45-54" ~ 45,
+    age_category == "55-64" ~ 55,
+    age_category == "65 or over" ~ 65
+  )
+}
+
+#' Convert field experience category to numeric minimum value
+#'
+#' This function translates field experience categories into numeric minimum values.
+#' @param field_experience_category A string representing the field experience category (e.g., "5-7 years", "2 - 4 years").
+#' @return A numeric minimum value for the field experience category.
+field_experience_to_min <- function(field_experience_category) {
+  case_when(
+    field_experience_category == "1 year or less" ~ 0,
+    field_experience_category == "2 - 4 years" ~ 2,
+    field_experience_category == "5-7 years" ~ 5,
+    field_experience_category == "8 - 10 years" ~ 8,
+    field_experience_category == "11 - 20 years" ~ 11,
+    field_experience_category == "21 - 30 years" ~ 21,
+    field_experience_category == "31 - 40 years" ~ 31,
+    field_experience_category == "41 years or more" ~ 41
+  )
+}
+
+#' Convert total experience category to numeric minimum value
+#'
+#' This function translates total experience categories into numeric minimum values.
+#' @param total_experience_category A string representing the total experience category (e.g., "5-7 years", "8 - 10 years").
+#' @return A numeric minimum value for the total experience category.
+total_experience_to_min <- function(total_experience_category) {
+  case_when(
+    total_experience_category == "1 year or less" ~ 0,
+    total_experience_category == "2 - 4 years" ~ 2,
+    total_experience_category == "5-7 years" ~ 5,
+    total_experience_category == "8 - 10 years" ~ 8,
+    total_experience_category == "11 - 20 years" ~ 11,
+    total_experience_category == "21 - 30 years" ~ 21,
+    total_experience_category == "31 - 40 years" ~ 31,
+    total_experience_category == "41 years or more" ~ 41
+  )
+}
+
+# Apply the transformations and filter based on logical conditions
+salary_data_clean <- salary_data_clean %>%
+  mutate(
+    min_age = age_to_min(age),                          # Convert age categories to numeric
+    min_total_experience = total_experience_to_min(total_experience),  # Convert total experience to numeric
+    min_field_experience = field_experience_to_min(field_experience)   # Convert field experience to numeric
+  ) %>%
+  filter(
+    min_age > min_total_experience,                # Age must be greater than total experience
+    min_age > min_field_experience,                # Age must be greater than field experience
+    min_total_experience >= min_field_experience   # Total experience must be >= field experience
+  )
+
+# Confirm the number of remaining observations
+num_observations_clean <- nrow(salary_data_clean)
+print("Original number of observations:")
+print(nrow(salary_data))
+
+print("Number of cleaned observations:")
+print(num_observations_clean)
+
+
+
+```
+
+## e. eliminate income
+
+```{r}
+# Explore salary distribution
+summary(salary_data_usd$annual_salary)
+
+min_salary <- 10000   
+max_salary <- 500000  # Upper bound (top 1% of salaries in the US)
+
+salary_data_cleaned_final <- salary_data_usd %>%
+  filter(annual_salary >= min_salary, annual_salary <= max_salary)
+
+final_sample_size <- nrow(salary_data_cleaned_final)
+
+final_sample_size
+
+
+```
+
+-   **Minimum salary threshold**: \$10,000 was chosen as a flexible threshold for realistic full-time annual salaries, considering the U.S. federal minimum wage. based on the distribution I found, it is also true for this part.
+
+-   **Maximum salary threshold**: \$500,000 was chosen based on the fact that salaries above this amount represent the top 1% of earners, which could introduce significant outliers and skew the analysis.
+
+# Question3
+
+## a.Write the `isPalindromic` Function
+
+```{r}
+#'
+#' Check if a given positive integer is palindromic
+#' 
+#' This function takes a positive integer, reverses its digits, and checks if
+#' it is palindromic (i.e., the number is the same forwards and backwards).
+#' 
+#' @param num A positive integer.
+#' 
+#' @return A list with two elements: 
+#' - isPalindromic: A logical value (TRUE if the number is palindromic, FALSE otherwise).
+#' - reversed: The input number with its digits reversed.
+#' 
+#' @examples
+#' isPalindromic(728827)   # TRUE, reversed: 728827
+#' isPalindromic(39951)    # FALSE, reversed: 15993
+isPalindromic <- function(num) {
+  # Error handling for invalid input
+  if (!is.numeric(num) || num <= 0 || num != floor(num)) {
+    stop("Input must be a positive integer.")
+  }
+  
+  # Convert the number to a string and reverse the digits
+  num_str <- as.character(num)
+  reversed_str <- paste(rev(strsplit(num_str, NULL)[[1]]), collapse = "")
+  reversed_num <- as.numeric(reversed_str)
+  
+  # Check if the original number is equal to the reversed number
+  is_palindromic <- num == reversed_num
+  
+  # Return the result as a list
+  return(list(isPalindromic = is_palindromic, reversed = reversed_num))
+}
+
+# Examples
+isPalindromic(728827)  # TRUE, reversed: 728827
+isPalindromic(39951)   # FALSE, reversed: 15993
+
+```
+
+## b. Create a function `nextPalindrome` that finds the next palindromic number
+
+```{r}
+#' 
+#' @param num A positive integer.
+#' 
+#' @return A list with two elements: 
+#' - isPalindromic: A logical value (TRUE if the number is palindromic, FALSE otherwise).
+#' - reversed: The input number with its digits reversed.
+#' 
+#' @examples
+#' isPalindromic(728827)   # TRUE, reversed: 728827
+#' isPalindromic(39951)    # FALSE, reversed: 15993
+nextPalindrome <- function(num) {
+  # Error handling for invalid input
+  if (!is.numeric(num) || num <= 0 || num != floor(num)) {
+    stop("Input must be a positive integer.")
+  }
+  next_num <- num + 1
+  while (!isPalindromic(next_num)$isPalindromic) {
+    next_num <- next_num + 1
+  }
+  
+  return(next_num)
+}
+# Examples
+nextPalindrome(7152)        # Should return 7227
+nextPalindrome(765431537)   # Should return 765434567
+
+```
+
+## c.find the next:
+
+```{r}
+test_numbers <- c(391, 9928, 19272719, 109, 2)
+
+next_palindromes <- sapply(test_numbers, nextPalindrome)
+
+next_palindromes
+
+```
