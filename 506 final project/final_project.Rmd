@@ -1,0 +1,309 @@
+---
+title: "final project"
+output: html_document
+date: "2024-11-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("caret")
+install.packages("randomForest")
+install.packages("Metric")
+install.packages("rpart.plot")
+```
+
+```{r}
+
+# Load libraries
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(caret)     # For data splitting and cross-validation
+library(rpart)     # For decision trees
+library(randomForest) # For random forest
+library(Metrics)   # For evaluation metrics
+library(modelr)
+# Load data
+bottle <- read.csv("bottle.csv")
+
+
+```
+```{r}
+head(bottle)
+```
+
+```{r}
+# Extract the columns for Temperature, Salinity, and Depth
+bottle_df <- bottle %>% 
+  select(T_degC, Salnty, Depthm) %>% 
+  rename(Temperature = T_degC, Salinity = Salnty, Depth = Depthm)
+
+# Handle missing values
+bottle_df <- bottle_df %>% 
+  mutate(Salinity = ifelse(is.na(Salinity), lag(Salinity, default = first(Salinity)), Salinity),
+         Temperature = ifelse(is.na(Temperature), lag(Temperature, default = first(Temperature)), Temperature),
+         Depth = ifelse(is.na(Depth), lag(Depth, default = first(Depth)), Depth))
+
+# Remove any remaining rows with NA values
+bottle_df <- na.omit(bottle_df)
+
+# Split data into training and testing sets
+set.seed(42)
+train_indices <- createDataPartition(bottle_df$Temperature, p = 0.8, list = FALSE)
+train_data <- bottle_df[train_indices, ]
+test_data <- bottle_df[-train_indices, ]
+
+
+```
+
+```{r}
+# Linear Regression
+lin_model <- lm(Temperature ~ Salinity, data = train_data)
+summary(lin_model)
+
+# Predict and evaluate Linear Regression
+lin_pred <- predict(lin_model, test_data)
+lin_rmse <- sqrt(mean((test_data$Temperature - lin_pred)^2))
+cat("Linear Regression RMSE: ", lin_rmse, "\n")
+
+# Plot Linear Regression
+ggplot(train_data, aes(x = Salinity, y = Temperature)) +
+  geom_point(color = 'red') +
+  geom_smooth(method = "lm", se = FALSE, color = "green") +
+  ggtitle("Linear Regression Model")
+```
+
+
+```{r}
+# Linear Regression
+lin_model <- lm(Temperature ~ Salinity + Depth, data = train_data)
+summary(lin_model)
+
+# Predict and evaluate Linear Regression
+lin_pred <- predict(lin_model, test_data)
+lin_rmse <- sqrt(mean((test_data$Temperature - lin_pred)^2))
+cat("Linear Regression RMSE: ", lin_rmse, "\n")
+
+# Plot Linear Regression
+ggplot(train_data, aes(x = Salinity, y = Temperature)) +
+  geom_point(color = 'red') +
+  geom_smooth(method = "lm", se = FALSE, color = "green") +
+  ggtitle("Multiple Linear Regression Model")
+
+```
+
+```{r}
+
+library(ggplot2)
+library(caret)
+
+data <- data.frame(Salinity = runif(100, 30, 35),
+                   Depth = runif(100, 0, 200),
+                   Temp = runif(100, 10, 20))
+
+if ("Temp" %in% colnames(data)) {
+  data$Temperature <- data$Temp
+} else {
+  stop("The column 'Temp' does not exist in the dataset.")
+}
+
+data$Temp <- NULL
+
+required_columns <- c("Salinity", "Depth", "Temperature")
+missing_columns <- setdiff(required_columns, colnames(data))
+if (length(missing_columns) > 0) {
+  stop(paste("The following required columns are missing:", paste(missing_columns, collapse = ", ")))
+}
+
+train_control <- trainControl(method = "cv", number = 5)  # 使用 5 折交叉验证
+
+set.seed(42)
+lin_model <- train(
+  Temperature ~ Salinity + Depth,
+  data = data,
+  method = "lm",
+  trControl = train_control
+)
+
+print(lin_model)
+cat("Linear Regression RMSE (Cross-Validation): ", lin_model$results$RMSE, "\n")
+
+set.seed(42)
+poly_model <- train(
+  Temperature ~ poly(Salinity, 3) + poly(Depth, 3),
+  data = data,
+  method = "lm",
+  trControl = train_control
+)
+
+print(poly_model)
+cat("Polynomial Regression RMSE (Cross-Validation): ", poly_model$results$RMSE, "\n")
+
+library(ggplot2)
+library(caret)
+
+salinity_vals <- seq(min(data$Salinity), max(data$Salinity), length.out = 100)
+depth_vals <- seq(min(data$Depth), max(data$Depth), length.out = 100)
+prediction_grid <- expand.grid(Salinity = salinity_vals, Depth = depth_vals)
+
+
+prediction_grid$Temperature <- predict(poly_model, newdata = prediction_grid)
+
+ggplot() +
+  geom_point(data = data, aes(x = Salinity, y = Temperature, color = Depth), alpha = 0.5) +
+  geom_line(data = prediction_grid, aes(x = Salinity, y = Temperature, color = Depth), size = 1) +
+  labs(
+    title = "Polynomial Regression Visualization",
+    x = "Salinity",
+    y = "Temperature",
+    color = "Depth"
+  ) +
+  theme_minimal()
+
+
+```
+
+
+```{r}
+library(ggplot2)
+library(caret)
+library(rpart)  
+
+data <- data.frame(Salinity = runif(100, 30, 35),
+                   Depth = runif(100, 0, 200),
+                   Temp = runif(100, 10, 20))
+
+if ("Temp" %in% colnames(data)) {
+  data$Temperature <- data$Temp
+} else {
+  stop("The column 'Temp' does not exist in the dataset.")
+}
+
+data$Temp <- NULL
+
+
+required_columns <- c("Salinity", "Depth", "Temperature")
+missing_columns <- setdiff(required_columns, colnames(data))
+if (length(missing_columns) > 0) {
+  stop(paste("The following required columns are missing:", paste(missing_columns, collapse = ", ")))
+}
+
+
+train_control <- trainControl(method = "cv", number = 5)  # 使用 5 折交叉验证
+
+set.seed(42)
+dt_model <- train(
+  Temperature ~ Salinity + Depth,
+  data = data,
+  method = "rpart", 
+  trControl = train_control,
+  tuneLength = 10  
+)
+
+print(dt_model)
+cat("Decision Tree RMSE (Cross-Validation): ", min(dt_model$results$RMSE), "\n")
+
+library(rpart.plot)
+rpart.plot(dt_model$finalModel, main = "Decision Tree Structure")
+
+var_importance <- varImp(dt_model)
+print(var_importance)
+
+plot(var_importance, main = "Variable Importance (Decision Tree)")
+
+dt_pred <- predict(dt_model, data)
+ggplot(data, aes(x = Temperature, y = dt_pred)) +
+  geom_point(color = 'blue', alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  ggtitle("Decision Tree: Actual vs Predicted Temperature") +
+  xlab("Actual Temperature") +
+  ylab("Predicted Temperature") +
+  theme_minimal()
+
+
+```
+
+```{r}
+library(ggplot2)
+library(caret)
+library(randomForest)
+
+data <- data.frame(Salinity = runif(100, 30, 35),
+                   Depth = runif(100, 0, 200),
+                   Temp = runif(100, 10, 20))
+
+
+if ("Temp" %in% colnames(data)) {
+  data$Temperature <- data$Temp
+} else {
+  stop("The column 'Temp' does not exist in the dataset.")
+}
+
+data$Temp <- NULL
+required_columns <- c("Salinity", "Depth", "Temperature")
+missing_columns <- setdiff(required_columns, colnames(data))
+if (length(missing_columns) > 0) {
+  stop(paste("The following required columns are missing:", paste(missing_columns, collapse = ", ")))
+}
+
+train_control <- trainControl(method = "cv", number = 5)  # 使用 5 折交叉验证
+
+set.seed(42)
+rf_model <- train(
+  Temperature ~ Salinity + Depth,
+  data = data,
+  method = "rf",
+  trControl = train_control,
+  tuneLength = 5  
+)
+
+print(rf_model)
+cat("Random Forest RMSE (Cross-Validation): ", min(rf_model$results$RMSE), "\n")
+
+var_importance <- varImp(rf_model)
+print(var_importance)
+
+library(ggplot2)
+library(caret)
+library(randomForest)
+
+salinity_vals <- seq(min(data$Salinity), max(data$Salinity), length.out = 100)
+depth_vals <- seq(min(data$Depth), max(data$Depth), length.out = 100)
+prediction_grid <- expand.grid(Salinity = salinity_vals, Depth = depth_vals)
+
+prediction_grid$Temperature <- predict(rf_model, newdata = prediction_grid)
+
+ggplot() +
+  geom_point(data = data, aes(x = Salinity, y = Temperature, color = Depth), alpha = 0.5) +
+  geom_line(data = prediction_grid, aes(x = Salinity, y = Temperature, color = Depth), size = 1) +
+  labs(
+    title = "Random Forest Regression Visualization",
+    x = "Salinity",
+    y = "Temperature",
+    color = "Depth"
+  ) +
+  theme_minimal()
+
+var_importance <- varImp(rf_model)
+print(var_importance)
+
+
+importance_df <- as.data.frame(var_importance$importance)
+importance_df$Variable <- rownames(importance_df)
+
+ggplot(importance_df, aes(x = reorder(Variable, Overall), y = Overall)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Variable Importance (Random Forest)",
+    x = "Variable",
+    y = "Importance"
+  ) +
+  theme_minimal()
+
+
+```
+
